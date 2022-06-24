@@ -38,9 +38,6 @@ if not os.path.exists(UPLOAD_FOLDER):
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
-def download_file(name):
-    return send_from_directory(app.config["UPLOAD_FOLDER"], name)
-
 
 class NewsBoardGatewayService:
     name = 'news_board_gateway'

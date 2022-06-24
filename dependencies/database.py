@@ -1,4 +1,5 @@
-from urllib import response
+# from unittest import result
+# from urllib import response
 from nameko.extensions import DependencyProvider
 import mysql.connector
 from mysql.connector import Error
@@ -88,20 +89,237 @@ class DatabaseWrapper:
             cursor.execute(sql, [str(arr_filename[i]), int(0), int(lastRowId)])
             self.connection.commit()
         
+        cursor.close()
         return {
             'response_code': 200,
             'response_data': {
                 "status": "success",
-                "message": "Added news successfully"
+                "message": "Add news successful"
             }
         }
+    
+    
+    def checking_news_availability(self, news_id):
+        cursor = self.connection.cursor(dictionary=True)
+        response = None
         
+        sql = 'SELECT COUNT(*) AS x, news.* FROM `news` WHERE id = %s AND deleted = 0'
+        cursor.execute(sql, [int(news_id)])
+        result = cursor.fetchone()
         
+        if result['x'] > 0:
+            response = {
+                'response_code': 200,
+                'response_data': {
+                    "status": "success",
+                    "message": "News found",
+                    "data": {
+                        'id': result['id'],
+                        'text': result['text'],
+                        'deleted': result['deleted'],
+                        'created_on': result['created_on']
+                    }
+                }
+            }          
+        else:
+            response = {
+                'response_code': 404,
+                'response_data': {
+                    "status": "error",
+                    "message": "News not found"
+                }
+            }
         
+        cursor.close()
+        return response
+    
+    
+    def edit_news_text(self, news_id, text):
+        cursor = self.connection.cursor(dictionary=True)
         
-       
+        sql = 'UPDATE `news` SET `text`=%s WHERE id = %s'
+        cursor.execute(sql, [str(text), int(news_id)])
+        self.connection.commit()
         
+        cursor.close()
+        return {
+            'response_code': 200,
+            'response_data': {
+                "status": "success",
+                "message": "Edit news text successful"
+            }
+        }
+    
+    
+    def add_news_file(self, news_id, arr_filename):
+        cursor = self.connection.cursor(dictionary=True)
         
+        for i in range(len(arr_filename)):
+            sql = 'INSERT INTO `news_files`(`id`, `filename`, `deleted`, `id_news`) VALUES (NULL, %s, %s, %s)'
+            cursor.execute(sql, [str(arr_filename[i]), int(0), int(news_id)])
+        
+        self.connection.commit()
+        cursor.close()
+        return {
+            'response_code': 200,
+            'response_data': {
+                "status": "success",
+                "message": "Add news file successful"
+            }
+        }
+    
+    
+    def delete_news(self, news_id):
+        cursor = self.connection.cursor(dictionary=True)
+        
+        sql = 'UPDATE `news_files` SET `deleted`=%s WHERE id_news = %s'
+        cursor.execute(sql, [int(1), int(news_id)])
+        
+        sql = 'UPDATE `news` SET `deleted`=%s WHERE id = %s'
+        cursor.execute(sql, [int(1), int(news_id)])
+        
+        self.connection.commit()
+        cursor.close()
+        return {
+            'response_code': 200,
+            'response_data': {
+                "status": "success",
+                "message": "Delete news successful"
+            }
+        }
+    
+    
+    def delete_news_file(self, news_id, file_id):
+        cursor = self.connection.cursor(dictionary=True)
+        
+        sql = 'SELECT COUNT(*) AS x FROM `news_files` WHERE id_news = %s AND id = %s'
+        cursor.execute(sql, [int(news_id), int(file_id)])
+        result = cursor.fetchone()
+        
+        if result['x'] <= 0:
+            return {
+                'response_code': 404,
+                'response_data': {
+                    "status": "error",
+                    "message": "File not found"
+                }
+            }
+        
+        sql = 'UPDATE `news_files` SET `deleted`=%s WHERE id = %s AND id_news = %s'
+        cursor.execute(sql, [int(1), int(file_id), int(news_id)])
+        
+        self.connection.commit()
+        cursor.close()
+        return {
+            'response_code': 200,
+            'response_data': {
+                "status": "success",
+                "message": "Delete news file successful"
+            }
+        }
+    
+    
+    def get_all_news(self):
+        cursor = self.connection.cursor(dictionary=True)
+        result = []
+        
+        sql = 'SELECT * FROM `news` WHERE deleted = %s'
+        cursor.execute(sql, [int(0)])
+        
+        for row in cursor.fetchall():
+            files = []
+            
+            sql_get_news_files = 'SELECT * FROM `news_files` WHERE id_news = %s AND deleted = %s'
+            cursor.execute(sql_get_news_files, [int(row['id']), int(0)])
+            
+            for file in cursor.fetchall():
+                files.append({
+                    'id': file['id'],
+                    'filename': file['filename']
+                })
+            
+            result.append({
+                'id': row['id'],
+                'text': row['text'],
+                'created_on': row['created_on'],
+                'files': files
+            })
+        
+        cursor.close()
+        return {
+            'response_code': 200,
+            'response_data': {
+                "status": "success",
+                "data": result
+            }
+        }
+    
+    
+    def get_news_by_id(self, news_id):
+        cursor = self.connection.cursor(dictionary=True)
+        response = None
+        files = []
+        
+        sql = 'SELECT * FROM `news` WHERE deleted = %s AND id = %s'
+        cursor.execute(sql, [int(0), int(news_id)])
+        result = cursor.fetchone()
+        
+        sql_get_news_files = 'SELECT * FROM `news_files` WHERE id_news = %s AND deleted = %s'
+        cursor.execute(sql_get_news_files, [int(result['id']), int(0)])
+        
+        for file in cursor.fetchall():
+            files.append({
+                'id': file['id'],
+                'filename': file['filename']
+            })
+        
+        response = {
+            'id': result['id'],
+            'text': result['text'],
+            'created_on': result['created_on'],
+            'files': files
+        }
+        
+        cursor.close()
+        return {
+            'response_code': 200,
+            'response_data': {
+                "status": "success",
+                "data": response
+            }
+        }
+    
+    
+    def get_file(self, file_id):
+        cursor = self.connection.cursor(dictionary=True)
+        response = None
+        
+        sql = 'SELECT COUNT(*) AS x, news_files.* FROM `news_files` WHERE id = %s AND deleted = 0'
+        cursor.execute(sql, [int(file_id)])
+        result = cursor.fetchone()
+        
+        if result['x'] <= 0:
+            response = {
+                'response_code': 404,
+                'response_data': {
+                    "status": "error",
+                    "message": "File not found"
+                }
+            }
+        else:
+            response = {
+                'response_code': 200,
+                'response_data': {
+                    "status": "success",
+                    "data": {
+                        'id': result['id'],
+                        'filename': result['filename']
+                    }
+                }
+            }
+        
+        cursor.close()
+        return response
 
 
 class DatabaseProvider(DependencyProvider):

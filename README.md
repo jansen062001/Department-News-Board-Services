@@ -395,3 +395,11 @@ Headers(5)
     "message": "File not found"
 }
 ```
+
+## Environment
+* python 3.9.7
+* nameko 2.14.1
+* mysql-connector-python 8.0.28
+* redis 3.5.3
+* werkzeug 2.0.2
+* flask 1.1.2
